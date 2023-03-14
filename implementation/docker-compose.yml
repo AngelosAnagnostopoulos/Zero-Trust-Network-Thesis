@@ -34,7 +34,7 @@ services:
     environment:
       - POSTGRES_USER=angelos
       - POSTGRES_PASSWORD=example
-      - POSTGRES_DB=app
+      - POSTGRES_DB=device_db
     ports:
       - 54322:5432
     networks:
@@ -42,28 +42,29 @@ services:
 
   users_inventory:
     image: postgres
+    restart: always
     container_name: users_db
     volumes:
       - ./databases/users:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=angelos
       - POSTGRES_PASSWORD=example
-      - POSTGRES_DB=app
+      - POSTGRES_DB=users_db
     ports:
       - 54323:5433
     networks:
       - test
 
-  certificate_inventory:
-    image: redis
-    container_name: ca_db
-    ports: 
-      - 6379:6379
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL    
-    networks:
-      - test
+  # certificate_inventory:
+  #   image: redis
+  #   container_name: ca_db
+  #   ports: 
+  #     - 6379:6379
+  #   environment:
+  #     - ALLOW_EMPTY_PASSWORD=yes
+  #     - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL    
+  #   networks:
+  #     - test
 
 networks:
   test:
