@@ -2,59 +2,37 @@ version: '3.3'
 
 services:
   
-  # policy_enforcement_point:
-  #   build: ./servers/pep
-  #   container_name: pep
+  # client_computer:
+  #   image: alpine:latest
+  #   container_name: client
   #   networks:
-  #     - test
-  
-  # authentication_server:
-  #   build: ./servers/authentication
-  #   container_name: authentication
-  #   networks:
-  #     - test
-  
-  # authorization_server:
-  #   build: ./servers/authorization
-  #   container_name: authorization
-  #   networks:
-  #     - test
-  
+  #     - certificates    # To have the CA issue the client certifcates  
+  #     - policies        # To connect to the PEP
+  #     - authentication  # For the user database
+  #   tty: true
+
+  ######## Certificates Network #########
+
   # certificate_authority:
   #   build: ./servers/certauth
   #   container_name: certauth
   #   networks:
-  #     - test
-  
+  #     - certificates
+
   device_inventory:
     image: postgres
-    container_name: device_db
+    container_name: device_container
     volumes:
       - ./databases/devices:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=angelos
       - POSTGRES_PASSWORD=example
-      - POSTGRES_DB=device_db
+      - POSTGRES_DB=ligma_db
     ports:
-      - 54322:5432
+      - 5432:5432
     networks:
-      - test
-
-  users_inventory:
-    image: postgres
-    restart: always
-    container_name: users_db
-    volumes:
-      - ./databases/users:/docker-entrypoint-initdb.d
-    environment:
-      - POSTGRES_USER=angelos
-      - POSTGRES_PASSWORD=example
-      - POSTGRES_DB=users_db
-    ports:
-      - 54323:5433
-    networks:
-      - test
-
+      - certificates
+    
   # certificate_inventory:
   #   image: redis
   #   container_name: ca_db
@@ -64,10 +42,69 @@ services:
   #     - ALLOW_EMPTY_PASSWORD=yes
   #     - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL    
   #   networks:
-  #     - test
+  #     - certificates
+
+  ######## Authentication Network #########
+  
+  # authentication_server:
+  #   build: ./servers/authentication
+  #   container_name: authentication
+  #   networks:
+  #     - authentication
+  #     - policies # To talk to the PEP
+
+  # users_inventory:
+  #   image: postgres
+  #   restart: always
+  #   container_name: users_db
+  #   volumes:
+  #     - ./databases/users:/docker-entrypoint-initdb.d
+  #   environment:
+  #     - POSTGRES_USER=angelos
+  #     - POSTGRES_PASSWORD=example
+  #     - POSTGRES_DB=users_db
+  #   ports:
+  #     - 54323:5433
+  #   networks:
+  #     - authentication
+
+  ####### PEP Network #######
+
+  policy_enforcement_point:
+    build:
+      context: ./servers/pep
+    container_name: pep
+    depends_on:
+      - device_inventory
+    networks:
+      - authentication
+      - policies
+      - resources
+      - certificates
+
+    
+  # authorization_server:
+  #   build: ./servers/authorization
+  #   container_name: authorization
+  #   networks:
+  #     - policies
+
+  # resources:
+  #   image: postgres
+  #   container_name: resource_db
+  #   volumes:
+  #     - ./databases/resources:/docker-entrypoint-initdb.d
+  #   environment:
+  #     - POSTGRES_USER=angelos
+  #     - POSTGRES_PASSWORD=example
+  #     - POSTGRES_DB=device_db
+  #   ports:
+  #     - 54342:5434
+  #   networks:
+  #     - certificates
 
 networks:
-  test:
-  # certificates:
-  # policies:
-  # resources:
+  certificates:
+  policies:
+  resources:
+  authentication:
