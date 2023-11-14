@@ -58,11 +58,15 @@ func _authenticateUserParseJSON(w http.ResponseWriter, r *http.Request) FormData
 		http.Error(w, "Failed to parse form data", http.StatusBadRequest)
 	}
 
-	name := r.FormValue("name")
+	username := r.FormValue("username")
 	password := r.FormValue("password")
 
+	if err != nil {
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
+	}
+
 	data := FormData{
-		Name:     name,
+		Name:     username,
 		Password: password,
 	}
 
@@ -85,7 +89,7 @@ func _authenticateUserConToDB() *sql.Rows {
 	}
 
 	// Construct the database connection string
-	connectionString := "user=angelos password=example host=device_container dbname=ligma_db sslmode=disable port=5432"
+	connectionString := "user=angelos password=example host=device_container dbname=test_db sslmode=disable port=5432"
 
 	var db *sql.DB
 	var err error
@@ -98,7 +102,7 @@ func _authenticateUserConToDB() *sql.Rows {
 	defer db.Close()
 
 	// Perform database operations
-	rows, err := db.Query("SELECT username FROM ligma")
+	rows, err := db.Query("SELECT username FROM Users")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -116,12 +120,14 @@ func _authenticateUserChecks(data FormData, rows *sql.Rows) bool {
 	// Process the query results
 	for rows.Next() {
 		var db_username string
-		err := rows.Scan(&db_username)
+		var db_password string
+		err := rows.Scan(&db_username, &db_password)
 		if err != nil {
 			log.Fatal(err)
 			return false
 		}
-		if data.Name == db_username {
+		fmt.Println(db_username, db_password)
+		if data.Name == db_username && data.Password == db_password {
 			return true
 		}
 	}

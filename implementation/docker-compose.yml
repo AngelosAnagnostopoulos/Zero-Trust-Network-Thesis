@@ -9,31 +9,28 @@ services:
   #     - test
   #   tty: true
 
-  test_database:
+  database:
     image: postgres
-    container_name: device_container
+    container_name: test_database
     volumes:
       - ./databases/test:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=angelos
       - POSTGRES_PASSWORD=example
-      - POSTGRES_DB=ligma_db
+      - POSTGRES_DB=test_db
     ports:
       - 5432:5432
     networks:
       - test
 
-  test_server:
+  server:
     build:
       context: ./servers/test
-    container_name: server
-    depends_on:
-      - test_database
+    container_name: test_server
     ports:
       - 4444:4444
     networks:
       - test
-
 
 networks:
   test:
