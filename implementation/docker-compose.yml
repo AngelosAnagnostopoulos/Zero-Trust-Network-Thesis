@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.8'
 
 services:
   
@@ -13,6 +13,7 @@ services:
     image: postgres
     container_name: test_database
     volumes:
+      - /media/angelos/Medium_boi/docker_volumes:/var/lib/postgresql/data
       - ./databases/test:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=angelos
@@ -28,7 +29,7 @@ services:
       context: ./servers/test
     container_name: test_server
     ports:
-      - 4444:4444
+      - 8080:8080
     networks:
       - test
 
