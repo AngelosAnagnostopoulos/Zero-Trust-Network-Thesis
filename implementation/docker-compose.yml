@@ -11,27 +11,30 @@ services:
 
   database:
     image: postgres
-    container_name: test_database
+    container_name: user_auth_db
     volumes:
-      - /media/angelos/Medium_boi/docker_volumes:/var/lib/postgresql/data
-      - ./databases/test:/docker-entrypoint-initdb.d
+      - postgredata:/var/lib/postgresql/data
+      - ./databases/authentication:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=angelos
       - POSTGRES_PASSWORD=example
-      - POSTGRES_DB=test_db
+      # - POSTGRES_DB=auth_db
     ports:
       - 5432:5432
     networks:
-      - test
+      - authentication
 
   server:
     build:
-      context: ./servers/test
-    container_name: test_server
+      context: ./servers/authentication
+    container_name: auth_server
     ports:
       - 8080:8080
     networks:
-      - test
+      - authentication
 
 networks:
-  test:
+  authentication:
+
+volumes:
+  postgredata: {}

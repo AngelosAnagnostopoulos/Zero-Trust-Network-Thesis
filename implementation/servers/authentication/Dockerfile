@@ -4,7 +4,8 @@ FROM golang:alpine
 RUN apk --no-cache add bash
 
 # Set the SESSION_SECRET_KEY argument using uuidgen
-RUN echo "export SESSION_SECRET_KEY=\$(uuidgen)" > /etc/profile.d/session_secret.sh && \
+RUN apk --no-cache add util-linux && \
+    echo "export SESSION_SECRET_KEY=$(uuidgen)" > /etc/profile.d/session_secret.sh && \
     chmod +x /etc/profile.d/session_secret.sh
 
 RUN mkdir /app

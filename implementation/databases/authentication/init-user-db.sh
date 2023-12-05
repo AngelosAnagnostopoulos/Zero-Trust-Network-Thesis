@@ -12,10 +12,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
        END IF;
     END
     \$$;
-    SELECT 'CREATE DATABASE test_db'
-    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'test_db')\gexec
+    SELECT 'CREATE DATABASE auth_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'auth_db')\gexec
     
-    GRANT ALL PRIVILEGES ON DATABASE test_db TO angelos;
+    GRANT ALL PRIVILEGES ON DATABASE auth_db TO angelos;
     
-    \c test_db
+    \c auth_db
 EOSQL
