@@ -67,7 +67,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Welcome handler hello")
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, "templates/welcome.html")
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request) {
