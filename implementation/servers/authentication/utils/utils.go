@@ -3,10 +3,27 @@ package utils
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"strings"
 	"time"
 )
+
+func InitSecretKey(filePath string) string {
+	// Read the secret key for the sessions. Keys are periodically rotated on the server with a cronjob
+
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+	}
+	sessionSecretKey := ExtractSessionSecretKey(string(content))
+	if sessionSecretKey == "" {
+		fmt.Println("SESSION_SECRET_KEY not found in the file")
+		panic("SESSION_SECRET_KEY environment variable not set")
+	}
+
+	return sessionSecretKey
+}
 
 func ExtractSessionSecretKey(content string) string {
 	// Find the line that contains "SESSION_SECRET_KEY"
@@ -18,14 +35,14 @@ func ExtractSessionSecretKey(content string) string {
 	return ""
 }
 
-func AuthenticateUser(username, password string) (*User, error) {
+func AuthenticateUser(username, password string) bool {
 
 	for _, user := range Users {
 		if user.Username == username && user.Password == password {
-			return &user, nil
+			return true
 		}
 	}
-	return nil, fmt.Errorf("Authentication failed")
+	return false
 }
 
 func CreateUserObjectFromDB() {
