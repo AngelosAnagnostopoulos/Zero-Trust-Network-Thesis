@@ -6,23 +6,20 @@ import (
 	"net/http"
 	"os"
 
+	rdb "github.com/boj/redistore"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	_ "github.com/lib/pq"
 )
 
-var store *sessions.CookieStore
+// var store *sessions.CookieStore
+var store *rdb.RediStore
+var sessionSecretKey = utils.InitSecretKey(filePath)
 
 const (
 	sessionName      = "user_session"
 	contextKeyUserID = "user_id"
+	filePath         = "/etc/profile.d/session_secret.sh"
 )
-
-func initContainer() {
-	filePath := "/etc/profile.d/session_secret.sh"
-	sessionSecretKey := utils.InitSecretKey(filePath)
-	store = sessions.NewCookieStore([]byte(sessionSecretKey))
-}
 
 func setUserSession(w http.ResponseWriter, r *http.Request, user *utils.User) error {
 	// Create a new session with a unique name for the user
@@ -42,6 +39,17 @@ func setUserSession(w http.ResponseWriter, r *http.Request, user *utils.User) er
 	}
 
 	return nil
+}
+
+func connectToRedis() {
+	// Fetch new store.
+	localstore, err := rdb.NewRediStore(10, "tcp", ":6379", "", []byte(sessionSecretKey))
+	store = localstore
+	if err != nil {
+		panic(err)
+	}
+	// store = sessions.NewCookieStore([]byte(sessionSecretKey))
+
 }
 
 func getUserFromSession(r *http.Request) (*utils.User, error) {
@@ -64,15 +72,33 @@ func getUserFromSession(r *http.Request) (*utils.User, error) {
 	return utils.FindUser(utils.Users, username), nil
 }
 
-func signupHandler(w http.ResponseWriter, r *http.Request) {
-	// Register a user to the users database
-	fmt.Println("Signup handler hello")
-	w.Write([]byte("Signup handler hello"))
-}
+// func signupHandler(w http.ResponseWriter, r *http.Request) {
+// 	// Register a user to the users database
+// 	fmt.Println("Signup handler hello")
+// 	w.Write([]byte("Signup handler hello"))
+// }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle user logouts logic and log the failed attempt
 	fmt.Println("Logout handler hello")
+
+	// Get the user session
+	session, err := store.Get(r, sessionName)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	// Clear the authenticated status in the session
+	session.Values["authenticated"] = false
+
+	// Delete the user session
+	err = session.Save(r, w)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Redirect to the login page after logout
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +166,8 @@ func authMiddleware(next http.Handler) http.Handler {
 
 		if authenticated, ok := session.Values["authenticated"].(bool); !ok || !authenticated {
 			// If not authenticated, redirect to the login page
-			http.Redirect(w, r, "/error", http.StatusSeeOther)
+			w.Write([]byte("Not authenticated!"))
+			// http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
 
@@ -157,7 +184,7 @@ func authMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
-	initContainer()
+	connectToRedis()
 
 	router := mux.NewRouter()
 
@@ -165,8 +192,10 @@ func main() {
 	router.Handle("/welcome", authMiddleware(http.HandlerFunc(welcomeHandler))).Methods(http.MethodGet)
 	router.Handle("/logout", authMiddleware(http.HandlerFunc(logoutHandler))).Methods(http.MethodGet)
 
+	// Debating if it needs implementation
+	// router.HandleFunc("/signup", signupHandler).Methods(http.MethodPost)
+
 	router.HandleFunc("/login", loginHandler).Methods(http.MethodPost)
-	router.HandleFunc("/signup", signupHandler).Methods(http.MethodPost)
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("static")))
 	http.Handle("/", router)
 
