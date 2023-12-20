@@ -3,12 +3,9 @@ package utils
 var Users = []User{}
 
 type User struct {
+	ID       int
 	Username string
 	Password string
-}
-type FormData struct {
-	Name     string `json:"username"`
-	Password string `json:"password"`
 }
 
 type FingerprintAuthenticator interface {

@@ -45,7 +45,16 @@ func AuthenticateUser(username, password string) bool {
 	return false
 }
 
-func CreateUserObjectFromDB() {
+func FindUser(users []User, targetUsername string) *User {
+	for i := range users {
+		if users[i].Username == targetUsername {
+			return &users[i]
+		}
+	}
+	return nil
+}
+
+func CreateUserObjectFromDB(username string) {
 
 	maxRetries := 10
 	retryInterval := time.Second * 2
@@ -54,8 +63,10 @@ func CreateUserObjectFromDB() {
 		log.Fatal(err)
 	}
 
+	// connectionString := "user=angelos password=example host=user_auth_db dbname=auth_db sslmode=disable port=5432" // For containers
+
 	//Connect to the database
-	connectionString := "user=angelos password=example host=user_auth_db dbname=auth_db sslmode=disable port=5432"
+	connectionString := "user=angelos password=example host=localhost dbname=auth_db sslmode=disable port=5432"
 
 	var db *sql.DB
 	var err error
@@ -67,7 +78,7 @@ func CreateUserObjectFromDB() {
 	defer db.Close()
 
 	// Perform database operations on tables
-	rows, err := db.Query("SELECT username,passwd_hash FROM Users;")
+	rows, err := db.Query("SELECT user_id, username,passwd_hash FROM Users WHERE username=$1;", username)
 	defer rows.Close()
 
 	if err != nil {
@@ -77,7 +88,7 @@ func CreateUserObjectFromDB() {
 	// Parse the appropriate fields in database and create a User object
 	for rows.Next() {
 		new_user := new(User)
-		err := rows.Scan(&new_user.Username, &new_user.Password)
+		err := rows.Scan(&new_user.ID, &new_user.Username, &new_user.Password)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -108,10 +119,4 @@ func waitForDBReady(maxRetries int, retryInterval time.Duration) error {
 	}
 
 	return nil
-}
-
-func GenerateUniqueSessionName(username string) string {
-	// Use the username and current timestamp to create a unique session name
-	timestamp := time.Now().UnixNano()
-	return fmt.Sprintf("%s_%d", username, timestamp)
 }
