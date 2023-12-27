@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  
+  database:
+    image: postgres
+    container_name: user_auth_db
+    volumes:
+      - postgredata:/var/lib/postgresql/data
+      - ./databases/authentication:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_USER=angelos
+      - POSTGRES_PASSWORD=example
+    ports:
+      - 5432:5432
+    networks:
+      - authentication
+
+  server:
+    build:
+      context: ./authentication
+    container_name: auth_server
+    ports:
+      - 8080:8080
+    networks:
+      - authentication
+
+networks:
+  authentication:
+
+volumes:
+  postgredata: {}

@@ -1,0 +1,73 @@
+Infrastructure requirements:
+
+SQL container for device database
+SQL container for user and group database
+SQL container(s?) for resources
+Gateways for resources (?)
+
+One managed and one unmanaged client computer for testing
+
+Server to give device certificates to managed devices
+
+Server for PEP:
+	Accepts requests for resources
+	Redirects to SSO
+	Receives SSO token
+	Gives green light on user and system authentication
+	Receive green light from PE on user authorization	
+	Fetch requested data and relay them to user
+		
+Server for PE:
+	Waits for SSO token from PEP after user is fully authenticated
+	Runs trust algorithms
+	Return trusted or untrusted status
+
+
+---------------------------------------------------------------------------
+
+Implementation details:
+
+Programming languages: Golang, Python3
+RDBMS: MySQL
+
+> 	At first, the SSO system can be replaced by a simple 
+	Username/Password combination or MFA. As the project progresses, we can add 
+	existing authentication tools for the SSO.
+
+> 	The PEP cannot query resource databases directly but goes to 
+  	a corresponding gateway, with administrator priviledges on said resource.(?)
+> 	All servers generate logs on all actions on every request.
+> 	The steps presented in the systems diagram 1-6 are repeated for 
+	every single request.
+
+---------------------------------------------------------------------------
+
+Network architecture details:
+
+> 	Policy Decision Points are firewalled off.
+	Same for device inventory database, User and group database 
+	and certificate authority, resources and their gateways.
+
+> 	The only traffic allowed in and out of PDPs is to the PEP.
+> 	The only traffic allowed in and out of resources servers is 
+	to their corresponding gateway (or the PEP?).
+
+>	CA connects to DI and issues a new certificate periodically. (?)
+
+---------------------------------------------------------------------------
+
+Stuff that would be cool to add:
+
+Industry standard authentication and SSO integrations.
+A more complicated trust algorithm for the PE. (At first: criteria-based)
+Static code analysis.
+IDS/IPS systems and 24/7 monitoring.
+K8s deployment.
+
+
+
+
+
+
+
+
