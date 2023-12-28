@@ -7,6 +7,8 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 func InitSecretKey(filePath string) string {
@@ -89,7 +91,7 @@ func CreateUserObjectFromDB(username string) {
 	// Parse the appropriate fields in database and create a User object
 	for rows.Next() {
 		new_user := new(User)
-		err := rows.Scan(&new_user.ID, &new_user.Username, &new_user.Password)
+		err := rows.Scan(&new_user.ID, &new_user.Username, &new_user.Password, (*pq.StringArray)(&new_user.Groups), &new_user.TrustLevel)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -17,12 +17,15 @@ import (
 	"time"
 )
 
+var certificatePathPrefix = "/home/angelos/Desktop/Thesis_Stuff/certificates/out/"
+
 func main() {
 	help := flag.Bool("help", false, "Optional, prints usage info")
+	// Hosts should become the container names in the future
 	srvhost := flag.String("srvhost", "localhost", "The server's host name")
-	caCertFile := flag.String("cacert", "", "Required, the name of the CA that signed the server's certificate")
-	clientCertFile := flag.String("clientcert", "", "Required, the name of the client's certificate file")
-	clientKeyFile := flag.String("clientkey", "", "Required, the file name of the clients's private key file")
+	caCertFile := flag.String("cacert", certificatePathPrefix+"ThesisCA.crt", "Required, the name of the CA that signed the server's certificate")
+	clientCertFile := flag.String("clientcert", certificatePathPrefix+"client.crt", "Required, the name of the client's certificate file")
+	clientKeyFile := flag.String("clientkey", certificatePathPrefix+"client.key", "Required, the file name of the clients's private key file")
 	flag.Parse()
 
 	usage := `usage:

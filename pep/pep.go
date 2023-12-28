@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+var certificatePathPrefix = "/home/angelos/Desktop/Thesis_Stuff/certificates/out/"
+
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received %s request for host %s from IP address %s and X-FORWARDED-FOR %s",
 		r.Method, r.Host, r.RemoteAddr, r.Header.Get("X-FORWARDED-FOR"))
@@ -27,13 +29,44 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Advanced Server: Sent response %s", resp)
 }
 
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	http.Get("http://localhost:8080/login")
+}
+
+func getTLSConfig(host, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
+	var caCert []byte
+	var err error
+	var caCertPool *x509.CertPool
+	if certOpt > tls.RequestClientCert {
+		caCert, err = ioutil.ReadFile(caCertFile)
+		if err != nil {
+			log.Fatal("Error opening cert file", caCertFile, ", error ", err)
+		}
+		caCertPool = x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
+	return &tls.Config{
+		ServerName: host,
+		// ClientAuth: tls.NoClientCert,				// Client certificate will not be requested and it is not required
+		// ClientAuth: tls.RequestClientCert,			// Client certificate will be requested, but it is not required
+		// ClientAuth: tls.RequireAnyClientCert,		// Client certificate is required, but any client certificate is acceptable
+		// ClientAuth: tls.VerifyClientCertIfGiven,		// Client certificate will be requested and if present must be in the server's Certificate Pool
+		// ClientAuth: tls.RequireAndVerifyClientCert,	// Client certificate will be required and must be present in the server's Certificate Pool
+		ClientAuth: certOpt,
+		ClientCAs:  caCertPool,
+		MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
+	}
+}
+
 func main() {
 	help := flag.Bool("help", false, "Optional, prints usage info")
-	host := flag.String("host", "", "Required flag, must be the hostname that is resolvable via DNS, or 'localhost'")
+	// Hosts should become the container names in the future, remember to also change the keys and certificate values
+	host := flag.String("host", "localhost", "Required flag, must be the hostname that is resolvable via DNS, or 'localhost'")
 	port := flag.String("port", "443", "The https port, defaults to 443")
-	serverCert := flag.String("srvcert", "", "Required, the name of the server's certificate file")
-	caCert := flag.String("cacert", "", "Required, the name of the CA that signed the client's certificate")
-	srcKey := flag.String("srvkey", "", "Required, the file name of the server's private key file")
+	serverCert := flag.String("srvcert", certificatePathPrefix+"localhost.crt", "Required, the name of the server's certificate file")
+	caCert := flag.String("cacert", certificatePathPrefix+"ThesisCA.crt", "Required, the name of the CA that signed the client's certificate")
+	srcKey := flag.String("srvkey", certificatePathPrefix+"localhost.key", "Required, the file name of the server's private key file")
 	certOpt := flag.Int("certopt", 0, "Optional, specifies the option for authenticating a client via certificate")
 	flag.Parse()
 
@@ -73,37 +106,10 @@ Options:
 		WriteTimeout: 10 * time.Second,
 		TLSConfig:    getTLSConfig(*host, *caCert, tls.ClientAuthType(*certOpt)),
 	}
-
+	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/", defaultHandler)
-
 	log.Printf("Starting HTTPS server on host %s and port %s", *host, *port)
 	if err := server.ListenAndServeTLS(*serverCert, *srcKey); err != nil {
 		log.Fatal(err)
-	}
-}
-
-func getTLSConfig(host, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
-	var caCert []byte
-	var err error
-	var caCertPool *x509.CertPool
-	if certOpt > tls.RequestClientCert {
-		caCert, err = ioutil.ReadFile(caCertFile)
-		if err != nil {
-			log.Fatal("Error opening cert file", caCertFile, ", error ", err)
-		}
-		caCertPool = x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
-	}
-
-	return &tls.Config{
-		ServerName: host,
-		// ClientAuth: tls.NoClientCert,				// Client certificate will not be requested and it is not required
-		// ClientAuth: tls.RequestClientCert,			// Client certificate will be requested, but it is not required
-		// ClientAuth: tls.RequireAnyClientCert,		// Client certificate is required, but any client certificate is acceptable
-		// ClientAuth: tls.VerifyClientCertIfGiven,		// Client certificate will be requested and if present must be in the server's Certificate Pool
-		// ClientAuth: tls.RequireAndVerifyClientCert,	// Client certificate will be required and must be present in the server's Certificate Pool
-		ClientAuth: certOpt,
-		ClientCAs:  caCertPool,
-		MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
 	}
 }

@@ -3,8 +3,8 @@ package main
 import (
 	"authentication/utils"
 	"fmt"
+	"log"
 	"net/http"
-	"os"
 
 	rdb "github.com/boj/redistore"
 	"github.com/gorilla/mux"
@@ -184,13 +184,47 @@ func authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// var certificatePathPrefix = "/home/angelos/Desktop/Thesis_Stuff/certificates/out/"
+
 func main() {
 
 	// Wait for request from PEP
 	// Authenticate the user
 	// Send the response back to PEP
 
-	connectToRedis()
+	// 	help := flag.Bool("help", false, "Optional, prints usage info")
+	// 	host := flag.String("host", certificatePathPrefix+"", "Required flag, must be the hostname that is resolvable via DNS, or 'localhost'")
+	// 	port := flag.String("port", "8080", "The https port, defaults to 443, we are using a different one")
+	// 	serverCert := flag.String("srvcert", certificatePathPrefix+"auth_server.crt", "Required, the name of the server's certificate file")
+	// 	srvKey := flag.String("srvkey", certificatePathPrefix+"auth_server.key", "Required, the file name of the server's private key file")
+	// 	flag.Parse()
+
+	// 	usage := `usage:
+
+	// simpleserver -host <hostname> -srvcert <serverCertFile> -cacert <caCertFile> -srvkey <serverPrivateKeyFile> [-port <port> -certopt <certopt> -help]
+
+	// Options:
+	//   -help       Prints this message
+	//   -host       Required, a DNS resolvable host name or 'localhost'
+	//   -srvcert    Required, the name the server's certificate file
+	//   -srvkey     Required, the name the server's key certificate file
+	//   -port       Optional, the https port for the server to listen on, defaults to 443
+	//   `
+
+	// 	if *help {
+	// 		fmt.Println(usage)
+	// 		return
+	// 	}
+	// 	if *host == "" || *serverCert == "" || *srvKey == "" {
+	// 		log.Fatalf("One or more required fields missing:\n%s", usage)
+	// 	}
+
+	// 	server := &http.Server{
+	// 		Addr:         ":" + *port,
+	// 		ReadTimeout:  5 * time.Minute, // 5 min to allow for delays when 'curl' on OSx prompts for username/password
+	// 		WriteTimeout: 10 * time.Second,
+	// 		TLSConfig:    &tls.Config{ServerName: *host},
+	// 	}
 
 	router := mux.NewRouter()
 
@@ -208,12 +242,18 @@ func main() {
 	// Create a channel to synchronize server startup
 	serverReady := make(chan struct{})
 
-	// Run the server in a goroutine
+	// Run the application server and connect to the sessions storage in goroutines
+	go connectToRedis()
 	go func() {
+
+		// log.Printf("Starting HTTPS server on host %s and port %s", *host, *port)
+		// if err := server.ListenAndServeTLS(*serverCert, *srvKey); err != nil {
+		// 	log.Fatal(err)
+		// }
+
 		err := http.ListenAndServe(":8080", nil)
 		if err != nil {
-			fmt.Printf("Error starting server: %s\n", err)
-			os.Exit(1)
+			log.Fatal(err)
 		}
 		close(serverReady)
 	}()
