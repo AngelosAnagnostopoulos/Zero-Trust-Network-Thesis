@@ -1,7 +1,3 @@
-// Copyright (c) 2020 Richard Youngkin. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package main
 
 import (
@@ -23,6 +19,7 @@ func main() {
 	help := flag.Bool("help", false, "Optional, prints usage info")
 	// Hosts should become the container names in the future
 	srvhost := flag.String("srvhost", "localhost", "The server's host name")
+	port := flag.String("port", "443", "The https port, defaults to 443")
 	caCertFile := flag.String("cacert", certificatePathPrefix+"ThesisCA.crt", "Required, the name of the CA that signed the server's certificate")
 	clientCertFile := flag.String("clientcert", certificatePathPrefix+"client.crt", "Required, the name of the client's certificate file")
 	clientKeyFile := flag.String("clientkey", certificatePathPrefix+"client.key", "Required, the file name of the clients's private key file")
@@ -73,7 +70,7 @@ Options:
 	}
 
 	client := http.Client{Transport: t, Timeout: 15 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s", *srvhost), bytes.NewBuffer([]byte("World")))
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s:%s", *srvhost, *port), bytes.NewBuffer([]byte("")))
 	if err != nil {
 		log.Fatalf("unable to create http request due to error %s", err)
 	}

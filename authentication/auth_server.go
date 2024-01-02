@@ -2,9 +2,16 @@ package main
 
 import (
 	"authentication/utils"
+	"bytes"
+	"crypto/tls"
+	"crypto/x509"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"time"
 
 	rdb "github.com/boj/redistore"
 	"github.com/gorilla/mux"
@@ -184,7 +191,84 @@ func authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// var certificatePathPrefix = "/home/angelos/Desktop/Thesis_Stuff/certificates/out/"
+func verifyHostMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		allowedHost := "localhost"
+
+		// Check if the request's host matches the allowed host
+		if r.Host != allowedHost {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// If the host is valid, proceed to the next handler
+		next.ServeHTTP(w, r)
+	})
+}
+
+var certificatePathPrefix = "/home/angelos/Desktop/Thesis_Stuff/certificates/out/"
+
+func replyToPEP(path, port string) {
+
+	srvhost := "localhost"
+	caCertFile := certificatePathPrefix + "ThesisCA.crt"
+	// These are indeed our server's keys, but being used to aggregate a request, we momentarily become a 'client' of shorts
+	clientCertFile := certificatePathPrefix + "auth_server.crt"
+	clientKeyFile := certificatePathPrefix + "auth_server.key"
+
+	var cert tls.Certificate
+	var err error
+	if clientCertFile != "" && clientKeyFile != "" {
+		cert, err = tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+		if err != nil {
+			log.Fatalf("Error creating x509 keypair from client cert file %s and client key file %s", clientCertFile, clientKeyFile)
+		}
+	}
+
+	log.Printf("CAFile: %s", caCertFile)
+	caCert, err := ioutil.ReadFile(caCertFile)
+	if err != nil {
+		log.Fatalf("Error opening cert file %s, Error: %s", caCertFile, err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	t := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			RootCAs:      caCertPool,
+		},
+	}
+
+	client := http.Client{Transport: t, Timeout: 15 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s:%s%s", srvhost, port, path), bytes.NewBuffer([]byte("")))
+	if err != nil {
+		log.Fatalf("unable to create http request due to error %s", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		switch e := err.(type) {
+		case *url.Error:
+			log.Fatalf("url.Error received on http request: %s", e)
+		default:
+			log.Fatalf("Unexpected error received: %s", err)
+		}
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		log.Fatalf("unexpected error reading response body: %s", err)
+	}
+
+	fmt.Printf("\nResponse from server: \n\tHTTP status: %s\n\tBody: %s\n", resp.Status, body)
+}
+
+func defaultHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("E")
+}
 
 func main() {
 
@@ -192,39 +276,51 @@ func main() {
 	// Authenticate the user
 	// Send the response back to PEP
 
-	// 	help := flag.Bool("help", false, "Optional, prints usage info")
-	// 	host := flag.String("host", certificatePathPrefix+"", "Required flag, must be the hostname that is resolvable via DNS, or 'localhost'")
-	// 	port := flag.String("port", "8080", "The https port, defaults to 443, we are using a different one")
-	// 	serverCert := flag.String("srvcert", certificatePathPrefix+"auth_server.crt", "Required, the name of the server's certificate file")
-	// 	srvKey := flag.String("srvkey", certificatePathPrefix+"auth_server.key", "Required, the file name of the server's private key file")
-	// 	flag.Parse()
+	help := flag.Bool("help", false, "Optional, prints usage info")
+	host := flag.String("host", "localhost", "Required flag, must be the hostname that is resolvable via DNS, or 'localhost'")
+	port := flag.String("port", "8080", "The https port, running on 8080")
+	serverCert := flag.String("srvcert", certificatePathPrefix+"localhost.crt", "Required, the name of the server's certificate file")
+	caCert := flag.String("cacert", certificatePathPrefix+"ThesisCA.crt", "Required, the name of the CA that signed the client's certificate")
+	srvKey := flag.String("srvKey", certificatePathPrefix+"localhost.key", "Required, the file name of the server's private key file")
+	certOpt := flag.Int("certopt", 4, "Optional, specifies the option for authenticating a client via certificate")
+	flag.Parse()
 
-	// 	usage := `usage:
+	usage := `usage:
+	
+simpleserver -host <hostname> -srvcert <serverCertFile> -cacert <caCertFile> -srvKey <serverPrivateKeyFile> [-port <port> -certopt <certopt> -help]
+	
+Options:
+  -help       Prints this message
+  -host       Required, a DNS resolvable host name
+  -srvcert    Required, the name the server's certificate file
+  -cacert     Required, the name of the CA that signed the client's certificate
+  -srvKey     Required, the name the server's key certificate file
+  -port       Optional, the https port for the server to listen on
+  -certopt    Optional, specifies the option for authenticating a client via certificate:
+			  0 - certificate not required, 
+			  1 - request a certificate but it's not required,
+			  2 - require any client certificate
+			  3 - if provided, verify the client certificate is authorized
+			  4 - require certificate and verify it's authorized`
 
-	// simpleserver -host <hostname> -srvcert <serverCertFile> -cacert <caCertFile> -srvkey <serverPrivateKeyFile> [-port <port> -certopt <certopt> -help]
+	if *help == true {
+		fmt.Println(usage)
+		return
+	}
+	if *host == "" || *serverCert == "" || *caCert == "" || *srvKey == "" {
+		log.Fatalf("One or more required fields missing:\n%s", usage)
+	}
 
-	// Options:
-	//   -help       Prints this message
-	//   -host       Required, a DNS resolvable host name or 'localhost'
-	//   -srvcert    Required, the name the server's certificate file
-	//   -srvkey     Required, the name the server's key certificate file
-	//   -port       Optional, the https port for the server to listen on, defaults to 443
-	//   `
+	if *certOpt < 0 || *certOpt > 4 {
+		log.Fatalf("Invalid value %d, provided for 'certopt' flag. It must be a number between 0 and 4 inclusive.\n%s", *certOpt, usage)
+	}
 
-	// 	if *help {
-	// 		fmt.Println(usage)
-	// 		return
-	// 	}
-	// 	if *host == "" || *serverCert == "" || *srvKey == "" {
-	// 		log.Fatalf("One or more required fields missing:\n%s", usage)
-	// 	}
-
-	// 	server := &http.Server{
-	// 		Addr:         ":" + *port,
-	// 		ReadTimeout:  5 * time.Minute, // 5 min to allow for delays when 'curl' on OSx prompts for username/password
-	// 		WriteTimeout: 10 * time.Second,
-	// 		TLSConfig:    &tls.Config{ServerName: *host},
-	// 	}
+	server := &http.Server{
+		Addr:         ":" + *port,
+		ReadTimeout:  5 * time.Minute, // 5 min to allow for delays when 'curl' on OSx prompts for username/password
+		WriteTimeout: 10 * time.Second,
+		TLSConfig:    utils.GetTLSConfig(*host, *caCert, tls.ClientAuthType(*certOpt)),
+	}
 
 	router := mux.NewRouter()
 
@@ -236,6 +332,7 @@ func main() {
 	// router.HandleFunc("/signup", signupHandler).Methods(http.MethodPost)
 
 	router.HandleFunc("/login", loginHandler).Methods(http.MethodPost)
+	// router.HandleFunc("/", defaultHandler).Methods(http.MethodGet)
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("static")))
 	http.Handle("/", router)
 
@@ -246,15 +343,15 @@ func main() {
 	go connectToRedis()
 	go func() {
 
-		// log.Printf("Starting HTTPS server on host %s and port %s", *host, *port)
-		// if err := server.ListenAndServeTLS(*serverCert, *srvKey); err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		err := http.ListenAndServe(":8080", nil)
-		if err != nil {
+		log.Printf("Starting HTTPS server on host %s and port %s", *host, *port)
+		if err := server.ListenAndServeTLS(*serverCert, *srvKey); err != nil {
 			log.Fatal(err)
 		}
+
+		// err := http.ListenAndServe(":8080", nil)
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 		close(serverReady)
 	}()
 

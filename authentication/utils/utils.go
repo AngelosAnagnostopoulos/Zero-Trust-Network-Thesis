@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +13,31 @@ import (
 	"github.com/lib/pq"
 )
 
+func GetTLSConfig(host, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
+	var caCert []byte
+	var err error
+	var caCertPool *x509.CertPool
+	if certOpt > tls.RequestClientCert {
+		caCert, err = ioutil.ReadFile(caCertFile)
+		if err != nil {
+			log.Fatal("Error opening cert file", caCertFile, ", error ", err)
+		}
+		caCertPool = x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
+	return &tls.Config{
+		ServerName: host,
+		// ClientAuth: tls.NoClientCert,				// Client certificate will not be requested and it is not required
+		// ClientAuth: tls.RequestClientCert,			// Client certificate will be requested, but it is not required
+		// ClientAuth: tls.RequireAnyClientCert,		// Client certificate is required, but any client certificate is acceptable
+		// ClientAuth: tls.VerifyClientCertIfGiven,		// Client certificate will be requested and if present must be in the server's Certificate Pool
+		// ClientAuth: tls.RequireAndVerifyClientCert,	// Client certificate will be required and must be present in the server's Certificate Pool
+		ClientAuth: certOpt,
+		ClientCAs:  caCertPool,
+		MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
+	}
+}
 func InitSecretKey(filePath string) string {
 	// Read the secret key for the sessions. Keys are periodically rotated on the server with a cronjob
 
